@@ -7,30 +7,16 @@ use std::ptr::null;
 
 
 pub struct HttpRequest {
-    pub requestType:    HttpRequestType,
+    pub request_type:    HttpRequestType,
     headers:            HashMap<String, String>,
     pub path:           String,
-    myStream:           TcpStream
+    my_stream:           TcpStream
 }
 
 pub enum HttpRequestType {
     GET
 }
 
-fn  getRequestType(line: String ) ->HttpRequestType{
-    let result = match line.split_whitespace().next().unwrap_or(""){
-        "GET" => {HttpRequestType::GET},
-        _ =>     HttpRequestType::GET
-
-    };
-    HttpRequestType::GET
-
-}
-fn  getPath(line: String ) ->String{
-    println!("line: {}",line);
-    return String::from(line.split_whitespace().nth(1).unwrap());
-
-}
 
 impl HttpRequest{
     pub fn new(stream: TcpStream) ->HttpRequest{
@@ -41,9 +27,8 @@ impl HttpRequest{
 
         let mut size = reader.read_until(b'\n', &mut buf).unwrap();
 
-        let reqType:HttpRequestType = getRequestType(String::from(String::from_utf8_lossy(&buf)));
-        println!("{}", String::from_utf8_lossy(&buf));
-        let path = getPath(String::from(String::from_utf8_lossy(&buf)));
+        let request_type:HttpRequestType = HttpRequest::get_request_type(String::from(String::from_utf8_lossy(&buf)));
+        let path = HttpRequest::get_path(String::from(String::from_utf8_lossy(&buf)));
 
         while size  > 0 {
             buf.clear();
@@ -57,11 +42,26 @@ impl HttpRequest{
             headers.insert(String::from(split[0]),String::from(split[1]));
         }
 
-        return HttpRequest {requestType: reqType,headers: headers,path: path, myStream: stream};
+        return HttpRequest { request_type: request_type,headers: headers,path: path, my_stream: stream};
 
     }
 
-    pub fn sendOk(&mut self, contents: String){
+    fn get_path(line: String ) ->String{
+        return String::from(line.split_whitespace().nth(1).unwrap_or(""));
+
+    }
+
+
+    fn get_request_type(line: String ) ->HttpRequestType{
+        return match line.split_whitespace().next().unwrap_or(""){
+            "GET" => {HttpRequestType::GET},
+            _ =>     HttpRequestType::GET
+
+        };
+    }
+
+
+    pub fn send_ok(&mut self, contents: String){
         let mut response = String::from ("HTTP/1.1 200\r\n");
         response.push_str("Content-Type: text/html; charset=UTF-8\r\n");
         response.push_str("Content-Length: ");
@@ -71,11 +71,15 @@ impl HttpRequest{
 
 
 
-        self.myStream.write(response.as_bytes()).unwrap();
-        self.myStream.flush();
+        self.my_stream.write(response.as_bytes()).unwrap();
+        match self.my_stream.flush(){
+            Ok(_x)=>{},
+            Err(e) =>println!("Error on flush: {:?}",e)
+
+        }
     }
 
-    pub fn send404(&mut self) {
+    pub fn send_404(&mut self) {
 
 
         let contents = String::from("Page does not exist.");
@@ -87,8 +91,12 @@ impl HttpRequest{
         response.push_str("\r\n\r\n");
         response.push_str(contents.as_str());
 
-        self.myStream.write(response.as_bytes()).unwrap();
-        self.myStream.flush();
+        self.my_stream.write(response.as_bytes()).unwrap();
+        match self.my_stream.flush(){
+            Ok(_x)=>{},
+            Err(e) =>println!("Error on flush: {:?}",e)
+
+        }
     }
 
 

@@ -1,35 +1,23 @@
-use std::io::{BufRead, BufReader, Read, Write, ErrorKind, Error};
-use std::net::{SocketAddr, TcpListener, TcpStream, IpAddr, Shutdown};
-use std::collections::HashMap;
+#[macro_use]
+extern crate clap;
+#[macro_use]
+extern crate lazy_static;
 
-use std::path::Path;
 use std::fs::File;
-
-use std::env;
-use std::borrow::Borrow;
+use std::io::{BufRead, BufReader, Error, ErrorKind, Read, Write};
+use std::net::{IpAddr, Shutdown, SocketAddr, TcpListener, TcpStream};
+use std::path::Path;
 
 mod HttpRequest;
 mod Configuration;
 
-#[macro_use]
-extern crate clap;
-
-#[macro_use]
-extern crate lazy_static;
-
 lazy_static! {
-    static ref HTML_DIR: String = {String::from(env::current_dir().unwrap().to_str().unwrap())};
     static ref CONFIG: Configuration::Config = Configuration::Config::new();
 }
 
 fn main() {
 
-    let path = env::current_dir();
-
-    println!("The current directory is {}", CONFIG.html_path);
-
-
-    let listener = TcpListener::bind("127.0.0.1:8888").unwrap();
+    let listener = TcpListener::bind(CONFIG.url).unwrap();
 
     loop {
         match listener.accept() {
@@ -38,36 +26,36 @@ fn main() {
         }
     }
 }
-    fn handle_request(mut stream: TcpStream, addr: SocketAddr) {
+    fn handle_request(stream: TcpStream, addr: SocketAddr) {
         let mut request = HttpRequest::HttpRequest::new(stream);
         match get_file_by_path(&request.path) {
-            Ok(content) => request.sendOk(content),
-            Err(e) => request.send404()
+            Ok(content) => request.send_ok(content),
+            Err(_e) => request.send_404()
         }
 
     }
 
     fn get_file_by_path(path: &String) -> Result<String, Error>{
-        let filePath = Path::new(&CONFIG.html_path).join(&path[1..]);
-        println!("{}",CONFIG.html_path);
-        println!("{}",filePath.to_str().unwrap());
+        let file_path = Path::new(&CONFIG.html_path).join(&path[1..]);
 
-        if (filePath.exists()){
-            println!("exists");
-            if (filePath.is_file()){
-                let mut file = File::open(filePath.to_str().unwrap()).unwrap();
+        if file_path.exists() {
+            if file_path.is_file(){
+                let mut file = File::open(file_path).unwrap();
                 let mut contents = String::new();
-                file.read_to_string(&mut contents);
-                return Ok(contents)
+                return match file.read_to_string(&mut contents){
+                    Ok(_x) => Ok(contents),
+                    Err(_e) =>Err(Error::new(ErrorKind::Other,"404"))
+                }
             }
-            if (filePath.is_dir()){
-                println!("dir");
-                let indexPath = filePath.join("index.html");
-                if (indexPath.is_file()){
-                    let mut file = File::open(indexPath.to_str().unwrap()).unwrap();
+            if file_path.is_dir() {
+                let index_path = file_path.join("index.html");
+                if index_path.is_file(){
+                    let mut file = File::open(index_path).unwrap();
                     let mut contents = String::new();
-                    file.read_to_string(&mut contents);
-                    return Ok(contents)
+                    return match file.read_to_string(&mut contents){
+                        Ok(_x) => Ok(contents),
+                        Err(_e) =>Err(Error::new(ErrorKind::Other,"404"))
+                    }
                 }
             }
         }

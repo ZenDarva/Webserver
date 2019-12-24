@@ -31,10 +31,10 @@ impl Config {
             )
             .get_matches();
 
-            return Config {url: Config::getUrl(&matches), html_path: Config::getDir(&matches)};
+            return Config {url: Config::get_url(&matches), html_path: Config::get_dir(&matches)};
     }
 
-    fn getUrl(matches: &ArgMatches) -> SocketAddr {
+    fn get_url(matches: &ArgMatches) -> SocketAddr {
         let url_str_val = matches.value_of("URL").unwrap();
         let url = SocketAddr::from_str(url_str_val);
         if url.is_err(){
@@ -43,11 +43,11 @@ impl Config {
         url.unwrap()
     }
 
-    fn getDir(matches: &ArgMatches) -> String {
+    fn get_dir(matches: &ArgMatches) -> String {
         let dir_str = matches.value_of("DIR");
-        match (dir_str){
-            none => String::from((env::current_dir().unwrap().join("html")).to_str().unwrap()),
-            Some(x) =>String::from(x)
+        match dir_str{
+            Some(x) =>String::from(x),
+            None => String::from((env::current_dir().unwrap().join("html")).to_str().unwrap())
         }
     }
 }
